@@ -1,21 +1,25 @@
-import { useEffect, useRef } from "react";
-import { MapBrowserEvent, Map as OpenLayersMap } from "ol";
+import { ReactNode, useEffect, useRef } from "react";
+import { MapBrowserEvent, MapEvent, Map as OpenLayersMap } from "ol";
 import View from "ol/View";
 import TileLayer from "ol/layer/Tile";
 import XYZ from "ol/source/XYZ";
 import { MapContainer } from "./styles";
+import React from "react";
 
 interface MapProps {
+  children?: ReactNode;
   onMapClick: (event: MapBrowserEvent<any>) => void;
+  onMapMoveStart: (event: MapEvent) => void;
 }
 
-const Map: React.FC<MapProps> = ({ onMapClick }) => {
-  const mapRef = useRef<HTMLDivElement>(null);
+const Map: React.FC<MapProps> = ({ children, onMapClick, onMapMoveStart }) => {
+  const mapRef = useRef<OpenLayersMap | null>(null);
+  const mapViewRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (mapRef.current) {
-      const map = new OpenLayersMap({
-        target: mapRef.current,
+    if (mapViewRef.current) {
+      mapRef.current = new OpenLayersMap({
+        target: mapViewRef.current,
         layers: [
           new TileLayer({
             source: new XYZ({
@@ -28,11 +32,26 @@ const Map: React.FC<MapProps> = ({ onMapClick }) => {
           zoom: 2,
         }),
       });
-      map.on("click", onMapClick);
+
+      return () => {
+        mapRef.current?.setTarget(undefined);
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.on("click", onMapClick);
     }
   }, [onMapClick]);
 
-  return <MapContainer ref={mapRef}></MapContainer>;
+  useEffect(() => {
+    if (mapRef.current) {
+      mapRef.current.on("movestart", onMapMoveStart);
+    }
+  }, [onMapMoveStart]);
+
+  return <MapContainer ref={mapViewRef}>{children}</MapContainer>;
 };
 
 export default Map;
